@@ -325,7 +325,7 @@ public class XsSearch extends XsServer{
                         Set<String> set = new HashSet<>(Arrays.asList(terms));
                         terms = set.toArray(new String[0]);
                         newQuery.append(prefix).append(name).append(":").append(String.join(" "+name+":", terms)).append(suffix);
-                    } else if (part.charAt(colonPos+1) != '(' && part.matches("[\\x81-\\xFE]")) {
+                    } else if (colonPos+1<=part.length()-1 && part.charAt(colonPos+1) != '(' && part.matches("[\\x81-\\xFE]")) {
                         newQuery.append(part.substring(0, colonPos+1))
                                 .append("(")
                                 .append(part.substring(colonPos+1))

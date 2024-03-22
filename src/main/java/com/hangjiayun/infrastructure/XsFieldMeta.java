@@ -1,5 +1,7 @@
 package com.hangjiayun.infrastructure;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -82,7 +84,7 @@ public class XsFieldMeta {
         if (config.containsKey("type")) {
             String type = config.get("type").toUpperCase();
             try {
-                this.type = TYPE.valueOf(type);
+                this.type = TYPE.valueOf(TYPE.class, type);
                 if (this.type == TYPE.ID) {
                     this.flag = FLAG.INDEX_SELF.value;
                     this.tokenizer = "full";
@@ -100,7 +102,7 @@ public class XsFieldMeta {
         // index flag
         if (config.containsKey("index") && this.type != TYPE.BODY) {
             try {
-                int localFlag = FLAG.valueOf("INDEX_"+config.get("index")).value;
+                int localFlag = FLAG.valueOf(FLAG.class,"INDEX_"+config.get("index").toUpperCase()).value;
                 this.flag &= ~ FLAG.INDEX_BOTH.value;
                 this.flag |= localFlag;
             } catch (Exception e) {
@@ -138,12 +140,47 @@ public class XsFieldMeta {
      * @return 是返回 true，不是返回 false
      */
     public boolean hasCustomTokenizer() {
-        return false;
-//        return !Objects.equals(this.tokenizer, XsTokenizer.DFL);
+        return !XsTokenizer.DFL.equals(this.tokenizer);
     }
 
+    /**
+     * 获取自定义分词法分词器
+     * @return 获取当前字段的自定义词法分析器
+     */
     public XsTokenizer getCustomTokenizer() {
-        throw new RuntimeException("暂未实现");
+        if (tokenizers.containsKey(this.tokenizer)) {
+            return tokenizers.get(this.tokenizer);
+        } else {
+            String tokenizer = this.tokenizer.trim();
+            int leftPos = tokenizer.indexOf("(");
+            int rightPos = tokenizer.indexOf(")");
+            String name;
+            String arg = null;
+            if (leftPos>0 && rightPos>leftPos) {
+                name = "XsTokenizer" + tokenizer.substring(0, 1).toUpperCase() + tokenizer.substring(1, leftPos);
+                arg = tokenizer.substring(leftPos+1, rightPos);
+            } else {
+                name = "XsTokenizer" + tokenizer.substring(0, 1).toUpperCase() + tokenizer.substring(1);
+                arg = null;
+            }
+
+            //todo: 目前这里仅支持加载内置分析器，后续考虑在这里加上可以加载用户自定义的分析器
+            Class<XsTokenizer> clazz;
+            try {
+                String fullQualifiedName = this.getClass().getPackageName()+".tokenizer."+name;
+                clazz = (Class<XsTokenizer>) Class.forName(fullQualifiedName);
+            } catch (Exception e) {
+                throw new XsException("Undefined custom tokenizer `"+tokenizer+"` for field `"+this.name+"`");
+            }
+
+            try {
+                XsTokenizer obj = arg == null ? clazz.getDeclaredConstructor().newInstance() : clazz.getDeclaredConstructor(String.class).newInstance(arg);
+                tokenizers.put(tokenizer, obj);
+                return obj;
+            } catch (Exception e) {
+                throw new XsException("instance XsTokenizer failed", e);
+            }
+        }
     }
 
     /**
@@ -173,4 +210,56 @@ public class XsFieldMeta {
     public boolean isNumeric() {
         return this.type == TYPE.NUMERIC;
     }
+
+    /**
+     * 把给定的值转换为符合这个字段的数据格式
+     * 【注意！】该实现与PHP版本略有不同。主要是不支持PHP中的strtotime的实现，具体对照PHP版本了解详情
+     * @param value 原值
+     * @return 转换后的值
+     */
+    public String val(String value) {
+        if (this.type == TYPE.DATE) {
+            boolean isNumeric = false;
+            Long timestamp = null;
+            try {
+                timestamp = Long.parseLong(value);
+                isNumeric = true;
+            } catch (Exception e) {
+                isNumeric = false;
+            }
+            //注意，这里与php版本的实现有所不同，暂时不支持类似php中使用strtotime将自然语言转换为时间戳。这里只支持纯数字时间戳
+            if (isNumeric && value.length() != 8) {
+                Date date = new Date(timestamp);
+                SimpleDateFormat outputFormat = new SimpleDateFormat("yyyyMMdd");
+                return outputFormat.format(date);
+            }
+        }
+        return value;
+    }
+
+    /**
+     * 判断当前字段索引是否支持短语搜索
+     * @return 是返回true，不是返回false
+     */
+    public boolean withPos() {
+        return (this.flag & FLAG_WITH_POSITION) > 0;
+    }
+
+    /**
+     * 判断当前字段是否需要在混合区索引
+     * @return 若需要返回true，不需要则返回false
+     */
+    public boolean hasIndexMixed(){
+        return (this.flag & FLAG.INDEX_MIXED.value) > 0;
+    }
+
+    /**
+     * 判断当前字段是否需要在字段区索引
+     * @return 若需要返回true，不需要则返回false
+     */
+    public boolean hasIndexSelf() {
+        return (this.flag & FLAG.INDEX_SELF.value) > 0;
+    }
+
+
 }

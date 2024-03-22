@@ -127,7 +127,7 @@ public class XsServer extends XsComponent implements AutoCloseable{
 
     @Override
     public void close() {
-        close(false);
+        this.close(false);
     }
 
     public void setProject(String name, String home) {
@@ -139,6 +139,16 @@ public class XsServer extends XsComponent implements AutoCloseable{
 
     public void setProject(String name) {
         setProject(name, "");
+    }
+
+    /**
+     * 设置服务端超时秒数
+     * @param sec 秒数，设为0则永不超时直到客户端主动关闭
+     */
+    public void setTimeout(int sec) {
+        XsCommand cmd = new XsCommand(XsCmd.XS_CMD_TIMEOUT);
+        cmd.setArg(sec);
+        this.execCommand(cmd, XsCmd.XS_CMD_OK_TIMEOUT_SET);
     }
 
     public XsCommand execCommand(XsCommand cmd, int resArg, int resCmd) {

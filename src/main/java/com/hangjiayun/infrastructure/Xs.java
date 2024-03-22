@@ -116,6 +116,38 @@ public class Xs extends XsComponent{
         return ret;
     }
 
+    /**
+     * 改变项目的默认字符集
+     * @param charset 修改后的字符集
+     */
+    public void setDefaultCharset(String charset) {
+        this.config.put("project.default_charset", charset.toUpperCase());
+    }
+
+    /**
+     * 获取索引操作对象
+     * @return 索引操作对象
+     */
+    public XsIndex getIndex() {
+        if (this.xsIndex == null) {
+            ArrayList<String> adds = new ArrayList<>();
+            String conn = this.config.containsKey("server.index") ? (String) this.config.get("server.index") : "8383";
+            String[] connArr = conn.split(";");
+            if (connArr.length >= 1) {
+                conn = connArr[0];
+            }
+            this.xsIndex = new XsIndex(conn, this);
+            this.xsIndex.setTimeout(0);
+            for (int i=1;i<connArr.length;i++) {
+                conn = connArr[i].trim();
+                if (!conn.isEmpty() && !conn.isBlank()) {
+                    this.xsIndex.addServer(conn).setTimeout(0);
+                }
+            }
+        }
+        return this.xsIndex;
+    }
+
     public XsSearch getSearch() {
         if (this.xsSearch == null) {
             ArrayList<String> conns = new ArrayList<>(10);
@@ -196,5 +228,14 @@ public class Xs extends XsComponent{
      */
     public XsFieldSchema getSchema() {
         return this.schema;
+    }
+
+    /**
+     * 获取当前主键字段
+     * @return 类型为ID的字段
+     * @see XsFieldSchema::getField()
+     */
+    public XsFieldMeta getFieldId() {
+        return this.schema.getFieldId();
     }
 }

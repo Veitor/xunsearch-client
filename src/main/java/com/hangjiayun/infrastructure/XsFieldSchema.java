@@ -103,4 +103,17 @@ public class XsFieldSchema {
     public Map<Integer, String> getVnoMap() {
         return this.vnoMap;
     }
+
+    /**
+     * 获取主键字段元数据
+     * @return 类型为ID的字段
+     */
+    public XsFieldMeta getFieldId()
+    {
+        if (this.typeMap.containsKey(XsFieldMeta.TYPE.ID)) {
+            String name = this.typeMap.get(XsFieldMeta.TYPE.ID);
+            return this.fields.get(name);
+        }
+        return null;
+    }
 }
